@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="A clean, professional video player.">
+  <title>Nova Player</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0d12; --panel:#121620; --muted:#9aa4b2; --line:#252c38; --accent:#e8edf5; }
+    * { box-sizing:border-box }
+    body { margin:0; min-height:100vh; background:var(--bg); color:#f4f6fa; font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    .shell { max-width:1180px; margin:auto; padding:28px 22px 42px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:26px; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:19px; font-weight:700; letter-spacing:.2px; }
+    .mark { width:34px; height:34px; display:grid; place-items:center; border:1px solid #394252; border-radius:11px; background:#171d28; }
+    .mark svg { width:15px; margin-left:2px; }
+    .tag { color:var(--muted); font-size:12px; border:1px solid var(--line); padding:6px 10px; border-radius:999px; }
+    .heading { margin:0 0 7px; font-size:clamp(23px,4vw,32px); letter-spacing:-.8px; }
+    .sub { margin:0 0 22px; color:var(--muted); }
+    .player-card { overflow:hidden; background:#000; border:1px solid #252b36; border-radius:17px; box-shadow:0 24px 70px #0008; }
+    .video-wrap { position:relative; aspect-ratio:16/9; background:#000; display:grid; place-items:center; }
+    video { width:100%; height:100%; display:block; background:#000; object-fit:contain; }
+    .overlay { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; background:linear-gradient(0deg,#0004,transparent 35%,transparent 70%,#0002); }
+    .big-play { width:66px; height:66px; border:1px solid #ffffff70; border-radius:50%; background:#111a; color:white; display:grid; place-items:center; backdrop-filter:blur(8px); transition:.2s; }
+    .big-play svg { width:23px; margin-left:3px; }
+    .big-play.hidden { opacity:0; transform:scale(.9); }
+    .controls { padding:13px 16px 15px; background:#11151d; }
+    .seek-row { display:flex; align-items:center; gap:11px; margin-bottom:10px; }
+    input[type=range] { accent-color:#f1f4f8; cursor:pointer; }
+    #seek { width:100%; height:4px; }
+    .control-row { display:flex; align-items:center; gap:14px; }
+    button, select { color:#e9edf4; background:transparent; border:0; cursor:pointer; font:inherit; }
+    button { display:inline-flex; align-items:center; justify-content:center; min-width:28px; min-height:30px; }
+    button:hover { color:white; }
+    button svg { width:19px; height:19px; }
+    .time { color:#b3bdca; font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .spacer { flex:1; }
+    .volume { width:86px; }
+    select { border:1px solid #303846; border-radius:7px; padding:5px 7px; font-size:12px; outline:none; }
+    .details { display:flex; justify-content:space-between; gap:14px; padding:17px 2px 0; }
+    .video-title { font-weight:650; font-size:16px; }
+    .video-note { color:var(--muted); font-size:13px; margin-top:3px; }
+    .status { color:#aeb8c6; font-size:12px; align-self:flex-start; border:1px solid var(--line); border-radius:7px; padding:5px 9px; white-space:nowrap; }
+    .hint { margin-top:24px; padding:15px 17px; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:13px; background:#10141c; }
+    .hint strong { color:#e8edf5; font-weight:600; }
+    footer { margin-top:28px; text-align:center; color:#687384; font-size:12px; }
+    @media(max-width:600px) {
+      .shell { padding:19px 13px 30px; }
+      header { margin-bottom:22px; }
+      .tag { font-size:11px; }
+      .player-card { border-radius:12px; }
+      .controls { padding:10px 11px 12px; }
+      .control-row { gap:8px; }
+      .volume, .volume-btn { display:none; }
+      .details { padding-top:13px; }
+      .status { font-size:11px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2L8.6 20.1c-.7.4-1.6-.1-1.6-.9V4.8Z"/></svg></span>
+        <span>Nova Player</span>
+      </div>
+      <span class="tag">WEB VIDEO PLAYER</span>
+    </header>
+
+    <h1 class="heading">Your video, uninterrupted.</h1>
+    <p class="sub">A simple space to watch and enjoy.</p>
+
+    <section class="player-card" aria-label="Video player">
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" playsinline preload="metadata"></video>
+        <div class="overlay">
+          <button class="big-play" id="bigPlay" aria-label="Play video">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2L8.6 20.1c-.7.4-1.6-.1-1.6-.9V4.8Z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="seek-row">
+          <span class="time" id="current">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+          <span class="time" id="duration">0:00</span>
+        </div>
+        <div class="control-row">
+          <button id="playBtn" aria-label="Play or pause" title="Play/Pause">
+            <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2L8.6 20.1c-.7.4-1.6-.1-1.6-.9V4.8Z"/></svg>
+          </button>
+          <button id="backBtn" aria-label="Back 10 seconds" title="Back 10 seconds">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11a9 9 0 1 1 1.8 6.4"/><path d="M3 4v7h7"/><path d="M12 8v8m0-8-2 2m2-2 2 2"/></svg>
+          </button>
+          <button id="forwardBtn" aria-label="Forward 10 seconds" title="Forward 10 seconds">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11a9 9 0 1 0-1.8 6.4"/><path d="M21 4v7h-7"/><path d="M12 8v8m0-8-2 2m2-2 2 2"/></svg>
+          </button>
+          <span class="spacer"></span>
+          <button class="volume-btn" id="muteBtn" aria-label="Mute" title="Mute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>
+          </button>
+          <input class="volume" id="volume" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume">
+          <select id="speed" aria-label="Playback speed" title="Playback speed">
+            <option value=".5">0.5×</option><option value=".75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option>
+          </select>
+          <button id="fullscreenBtn" aria-label="Fullscreen" title="Fullscreen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="details">
+      <div>
+        <div class="video-title" id="videoTitle">Featured video</div>
+        <div class="video-note">Now playing on Nova Player</div>
+      </div>
+      <span class="status" id="status">Ready</span>
+    </div>
+
+    <div class="hint">
+      <strong>Set your video:</strong> Open <code>index.html</code> and replace the <code>VIDEO_URL</code> value near the bottom with your direct video link.
+      The link should point to a playable media file (such as MP4, WebM or an HLS .m3u8 stream), not an ordinary webpage.
+    </div>
+    <footer>Nova Player · Minimal by design</footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    // ==========================================================
+    // VIDEO CONFIGURATION — Replace this URL with your own link.
+    // Use a direct MP4/WebM file URL or an HLS (.m3u8) stream URL.
+    // ==========================================================
+    const VIDEO_URL = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+    const VIDEO_TITLE = "Featured video";
+
+    const video = document.getElementById("video");
+    const statusEl = document.getElementById("status");
+    const playBtn = document.getElementById("playBtn");
+    const bigPlay = document.getElementById("bigPlay");
+    const seek = document.getElementById("seek");
+    const current = document.getElementById("current");
+    const duration = document.getElementById("duration");
+    let hls = null;
+    let seeking = false;
+
+    document.getElementById("videoTitle").textContent = VIDEO_TITLE;
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds)) return "0:00";
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+      return h ? `${h}:${m.toString().padStart(2, "0")}:${s}` : `${m}:${s}`;
+    }
+    function updatePlayState() {
+      const playing = !video.paused && !video.ended;
+      document.getElementById("playIcon").innerHTML = playing
+        ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>'
+        : '<path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2L8.6 20.1c-.7.4-1.6-.1-1.6-.9V4.8Z"/>';
+      bigPlay.classList.toggle("hidden", playing);
+      bigPlay.setAttribute("aria-label", playing ? "Pause video" : "Play video");
+    }
+    async function togglePlay() {
+      if (video.paused) {
+        try { await video.play(); statusEl.textContent = "Playing"; }
+        catch (e) { statusEl.textContent = "Playback blocked"; }
+      } else video.pause();
+    }
+
+    playBtn.addEventListener("click", togglePlay);
+    bigPlay.addEventListener("click", togglePlay);
+    video.addEventListener("click", togglePlay);
+    video.addEventListener("play", updatePlayState);
+    video.addEventListener("pause", updatePlayState);
+    video.addEventListener("ended", () => { updatePlayState(); statusEl.textContent = "Finished"; });
+    video.addEventListener("loadedmetadata", () => {
+      duration.textContent = formatTime(video.duration);
+      statusEl.textContent = "Ready";
+    });
+    video.addEventListener("timeupdate", () => {
+      current.textContent = formatTime(video.currentTime);
+      if (!seeking && Number.isFinite(video.duration) && video.duration > 0)
+        seek.value = (video.currentTime / video.duration) * 1000;
+    });
+    video.addEventListener("waiting", () => statusEl.textContent = "Buffering…");
+    video.addEventListener("playing", () => statusEl.textContent = "Playing");
+    video.addEventListener("error", () => statusEl.textContent = "Unable to load video");
+
+    seek.addEventListener("input", () => {
+      seeking = true;
+      if (Number.isFinite(video.duration)) current.textContent = formatTime((seek.value / 1000) * video.duration);
+    });
+    seek.addEventListener("change", () => {
+      if (Number.isFinite(video.duration)) video.currentTime = (seek.value / 1000) * video.duration;
+      seeking = false;
+    });
+    document.getElementById("backBtn").addEventListener("click", () => video.currentTime = Math.max(0, video.currentTime - 10));
+    document.getElementById("forwardBtn").addEventListener("click", () => {
+      if (Number.isFinite(video.duration)) video.currentTime = Math.min(video.duration, video.currentTime + 10);
+      else video.currentTime += 10;
+    });
+    document.getElementById("volume").addEventListener("input", e => {
+      video.volume = Number(e.target.value);
+      video.muted = video.volume === 0;
+    });
+    document.getElementById("muteBtn").addEventListener("click", () => {
+      video.muted = !video.muted;
+      document.getElementById("muteBtn").style.opacity = video.muted ? ".45" : "1";
+    });
+    document.getElementById("speed").addEventListener("change", e => video.playbackRate = Number(e.target.value));
+    document.getElementById("fullscreenBtn").addEventListener("click", async () => {
+      const target = document.getElementById("videoWrap");
+      if (!document.fullscreenElement) {
+        if (target.requestFullscreen) await target.requestFullscreen();
+        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+      } else await document.exitFullscreen();
+    });
+
+    function loadVideo(url) {
+      if (!url || url.includes("YOUR_VIDEO_URL")) {
+        statusEl.textContent = "Add a video URL";
+        return;
+      }
+      if (hls) { hls.destroy(); hls = null; }
+      if (/\.m3u8($|\?)/i.test(url)) {
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = url;
+        } else if (window.Hls && Hls.isSupported()) {
+          hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) statusEl.textContent = "Stream error";
+          });
+        } else {
+          statusEl.textContent = "HLS not supported";
+        }
+      } else {
+        video.src = url;
+      }
+      video.load();
+    }
+    loadVideo(VIDEO_URL);
+  </script>
+</body>
+</html>
